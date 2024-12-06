@@ -3,7 +3,7 @@ blueprint:
   author: Coleslaw94
   description: >
     Script to transition light color/temperature over specified time following the parabolic curve specified.
-  source_url: https://github.com/steku/ha_cercadian_alarm/blob/main/blueprint_parabolic_alarm_script.yaml
+  source_url: https://github.com/Coleslaw1994/ha_parabolic_light_transition/blob/main/parabolic_light_transition.yaml
   domain: script
   homeassistant:
     min_version: 2024.9.0
