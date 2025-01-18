@@ -1,8 +1,8 @@
 blueprint:
-  name: Parabolic Light Transition
+  name: Parabolic (Power Law) Light Transition
   author: Coleslaw1994
   description: >
-    Script to transition light color/temperature over specified time following the parabolic curve specified.
+    Script to transition light color/temperature over specified time following the power law curve specified.
   source_url: https://github.com/Coleslaw1994/ha_parabolic_light_transition/blob/main/parabolic_light_transition.yaml
   domain: script
   homeassistant:
@@ -38,9 +38,9 @@ fields:
     required: true
   brightness_exponent:
     description: >-
-      The exponent which defines the parabolic curve to follow for brightness,
-      e.g. 2 for the parabolic curve y=x^2. You can easily visualize parabolic
-      curves by entering the formula into wolfram alpha.
+      The exponent which defines the power law curve to follow for brightness,
+      e.g. 2 for the parabolic curve y=x^2. You can easily visualize power law
+      curves by entering the formula into any online graphing tool.
     selector:
       number: null
     default: 2
@@ -70,9 +70,9 @@ fields:
     required: true
   kelvin_exponent:
     description: >-
-      The exponent which defines the parabolic curve to follow for color
-      temperature, e.g. 2 for the parabolic curve y=x^2. You can easily
-      visualize parabolic curves by entering the formula into wolfram alpha.
+      The exponent which defines the power law curve to follow for color
+      temperature, e.g. 2 for the parabolic curve y=x^2. You can easily visualize power law
+      curves by entering the formula into any online graphing tool.
     selector:
       number: null
     default: 2
@@ -90,8 +90,7 @@ fields:
   steps_per_minute:
     description: >-
       The number of commands home assistant will send to the light each minute.
-      Higher numbers will result in more accurate tracking along the parabolic
-      curve. 
+      Higher numbers will result in more accurate tracking along the curve. 
     selector:
       number: null
     default: 12
@@ -111,7 +110,7 @@ sequence:
       brightness_change: "{{target_brightness - starting_brightness}}"
       starting_kelvin: |-
         {% if states(target_light) == 'off' %}
-          {{starting_brightness}}
+          {{starting_kelvin}}
         {% else %}
           {{state_attr(target_light, 'color_temp_kelvin')}}
         {% endif %}
