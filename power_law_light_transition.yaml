@@ -53,7 +53,7 @@ fields:
     selector:
       color_temp:
         unit: kelvin
-        min: 2000
+        min: 0
         max: 6500
     default: 2000
     name: Starting Kelvin
@@ -63,7 +63,7 @@ fields:
     selector:
       color_temp:
         unit: kelvin
-        min: 2000
+        min: 0
         max: 6500
     default: 6500
     name: Target Kelvin
@@ -71,8 +71,9 @@ fields:
   kelvin_exponent:
     description: >-
       The exponent which defines the power law curve to follow for color
-      temperature, e.g. 2 for the parabolic curve y=x^2. You can easily visualize power law
-      curves by entering the formula into any online graphing tool.
+      temperature, e.g. 2 for the parabolic curve y=x^2. You can easily
+      visualize power law curves by entering the formula into any online
+      graphing tool.
     selector:
       number: null
     default: 2
@@ -80,8 +81,8 @@ fields:
     required: true
   transition_length:
     description: >-
-      The time it will take to complete the transition. Take this into account
-      when setting up the automation this script is called by.
+      The time it will take to complete the transition in minutes. Take this
+      into account when setting up the automation this script is called by.
     selector:
       number: null
     default: 15
@@ -115,13 +116,38 @@ sequence:
           {{state_attr(target_light, 'color_temp_kelvin')}}
         {% endif %}
       kelvin_change: "{{target_kelvin - starting_kelvin}}"
-  - action: light.turn_on
-    data:
-      brightness_pct: "{{starting_brightness}}"
-      color_temp_kelvin: "{{starting_kelvin}}"
-      transition: "{{interval_time - 1}}"
-    target:
-      entity_id: "{{target_light}}"
+  - if:
+      - condition: template
+        value_template: "{{starting_kelvin < 2000}}"
+    then:
+      - variables:
+          value_g: >-
+            {{[[((-0.000004 * starting_kelvin | float ** 2 + 0.0586 *
+            starting_kelvin | float + 40.082) | round) | int, 0] | max, 255] |
+            min}}
+          value_b: >-
+            {{[[((-0.000007 * starting_kelvin | float ** 2 + 0.1096 *
+            starting_kelvin | float - 160.11) | round) | int, 0] | max, 255] |
+            min}}
+      - action: light.turn_on
+        data:
+          brightness_pct: "{{starting_brightness}}"
+          rgb_color:
+            - 255
+            - "{{value_g}}"
+            - "{{value_b}}"
+          transition: "{{interval_time - 1}}"
+        target:
+          entity_id: "{{target_light}}"
+    else:
+      - action: light.turn_on
+        data:
+          brightness_pct: "{{starting_brightness}}"
+          color_temp_kelvin: "{{starting_kelvin}}"
+          transition: "{{interval_time - 1}}"
+        target:
+          entity_id: "{{target_light}}"
+    alias: Initial Turn On
   - delay:
       seconds: "{{interval_time}}"
   - repeat:
@@ -141,24 +167,72 @@ sequence:
             - condition: template
               value_template: "{{is_state(target_light, 'on')}}"
           then:
-            - action: light.turn_on
-              data:
-                brightness_pct: "{{brightness}}"
-                color_temp_kelvin: "{{kelvin}}"
-                transition: "{{interval_time - 1}}"
-              target:
-                entity_id: "{{target_light}}"
+            - if:
+                - condition: template
+                  value_template: "{{kelvin < 2000}}"
+              then:
+                - variables:
+                    value_g: >-
+                      {{[[((-0.000004 * kelvin | float ** 2 + 0.0586 * kelvin |
+                      float + 40.082) | round) | int, 0] | max, 255] | min}}
+                    value_b: >-
+                      {{[[((-0.000007 * kelvin | float ** 2 + 0.1096 * kelvin |
+                      float - 160.11) | round) | int, 0] | max, 255] | min}}
+                - action: light.turn_on
+                  data:
+                    brightness_pct: "{{brightness}}"
+                    rgb_color:
+                      - 255
+                      - "{{value_g}}"
+                      - "{{value_b}}"
+                    transition: "{{interval_time - 1}}"
+                  target:
+                    entity_id: "{{target_light}}"
+              else:
+                - action: light.turn_on
+                  data:
+                    brightness_pct: "{{brightness}}"
+                    color_temp_kelvin: "{{kelvin}}"
+                    transition: "{{interval_time - 1}}"
+                  target:
+                    entity_id: "{{target_light}}"
         - delay:
             seconds: "{{interval_time}}"
+    alias: Transition
   - if:
       - condition: template
         value_template: "{{is_state(target_light, 'on')}}"
     then:
-      - action: light.turn_on
-        data:
-          brightness_pct: "{{target_brightness}}"
-          color_temp_kelvin: "{{target_kelvin}}"
-          transition: "{{interval_time - 1}}"
-        target:
-          entity_id: "{{target_light}}"
+      - if:
+          - condition: template
+            value_template: "{{target_kelvin < 2000}}"
+        then:
+          - variables:
+              value_g: >-
+                {{[[((-0.000004 * target_kelvin | float ** 2 + 0.0586 *
+                target_kelvin | float + 40.082) | round) | int, 0] | max, 255] |
+                min}}
+              value_b: >-
+                {{[[((-0.000007 * target_kelvin | float ** 2 + 0.1096 *
+                target_kelvin | float - 160.11) | round) | int, 0] | max, 255] |
+                min}}
+          - action: light.turn_on
+            data:
+              brightness_pct: "{{target_brightness}}"
+              rgb_color:
+                - 255
+                - "{{value_g}}"
+                - "{{value_b}}"
+              transition: "{{interval_time - 1}}"
+            target:
+              entity_id: "{{target_light}}"
+        else:
+          - action: light.turn_on
+            data:
+              brightness_pct: "{{target_brightness}}"
+              color_temp_kelvin: "{{target_kelvin}}"
+              transition: "{{interval_time - 1}}"
+            target:
+              entity_id: "{{target_light}}"
+    alias: Final Light Set
 mode: parallel
