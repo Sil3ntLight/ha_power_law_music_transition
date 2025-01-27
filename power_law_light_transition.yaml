@@ -151,14 +151,14 @@ sequence:
         - delay:
             seconds: "{{interval_time}}"
   - if:
-    - condition: template
-      value_template: "{{is_state(target_light, 'on')}}"
-  then:
-    - action: light.turn_on
-      data:
-        brightness_pct: "{{target_brightness}}"
-        color_temp_kelvin: "{{target_kelvin}}"
-        transition: "{{interval_time - 1}}"
-      target:
-        entity_id: "{{target_light}}"
+      - condition: template
+        value_template: "{{is_state(target_light, 'on')}}"
+    then:
+      - action: light.turn_on
+        data:
+          brightness_pct: "{{target_brightness}}"
+          color_temp_kelvin: "{{target_kelvin}}"
+          transition: "{{interval_time - 1}}"
+        target:
+          entity_id: "{{target_light}}"
 mode: parallel
