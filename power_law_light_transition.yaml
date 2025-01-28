@@ -4,6 +4,7 @@ blueprint:
   description: >
     Script to transition light color/temperature over specified time following the power law curve specified.
   source_url: https://github.com/Coleslaw1994/ha_power_law_light_transition/blob/main/power_law_light_transition.yaml
+  domain: script
   homeassistant:
     min_version: 2024.9.0
 fields:
