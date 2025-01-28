@@ -55,7 +55,7 @@ fields:
         unit: kelvin
         min: 0
         max: 6500
-    default: 2000
+    default: 1000
     name: Starting Kelvin
     required: true
   target_kelvin:
@@ -116,27 +116,22 @@ sequence:
           {{state_attr(target_light, 'color_temp_kelvin')}}
         {% endif %}
       kelvin_change: "{{target_kelvin - starting_kelvin}}"
-  - if:
+  - alias: Initial Turn On
+    if:
       - condition: template
         value_template: "{{starting_kelvin < 2000}}"
     then:
       - variables:
           value_g: >-
-            {{[[((-0.000004 * starting_kelvin | float ** 2 + 0.0586 *
-            starting_kelvin | float + 40.082) | round) | int, 0] | max, 255] |
-            min}}
-          value_b: >-
-            {{[[((-0.000007 * starting_kelvin | float ** 2 + 0.1096 *
-            starting_kelvin | float - 160.11) | round) | int, 0] | max, 255] |
-            min}}
+            {{ [[(99.4708025861 * log(starting_kelvin | float /100,e,1) -
+            161.1195681661) | round (0) | int, 0] | max, 255] | min }}
       - action: light.turn_on
         data:
           brightness_pct: "{{starting_brightness}}"
           rgb_color:
             - 255
             - "{{value_g}}"
-            - "{{value_b}}"
-          transition: "{{interval_time - 1}}"
+            - 0
         target:
           entity_id: "{{target_light}}"
     else:
@@ -144,13 +139,10 @@ sequence:
         data:
           brightness_pct: "{{starting_brightness}}"
           color_temp_kelvin: "{{starting_kelvin}}"
-          transition: "{{interval_time - 1}}"
         target:
           entity_id: "{{target_light}}"
-    alias: Initial Turn On
-  - delay:
-      seconds: "{{interval_time}}"
-  - repeat:
+  - alias: Transition
+    repeat:
       until:
         - condition: template
           value_template: "{{as_timestamp(now()) >= finish_time - interval_time}}"
@@ -173,18 +165,15 @@ sequence:
               then:
                 - variables:
                     value_g: >-
-                      {{[[((-0.000004 * kelvin | float ** 2 + 0.0586 * kelvin |
-                      float + 40.082) | round) | int, 0] | max, 255] | min}}
-                    value_b: >-
-                      {{[[((-0.000007 * kelvin | float ** 2 + 0.1096 * kelvin |
-                      float - 160.11) | round) | int, 0] | max, 255] | min}}
+                      {{ [[(99.4708025861 * log(kelvin | float /100,e,1) -
+                      161.1195681661) | round (0) | int, 0] | max, 255] | min }}
                 - action: light.turn_on
                   data:
                     brightness_pct: "{{brightness}}"
                     rgb_color:
                       - 255
                       - "{{value_g}}"
-                      - "{{value_b}}"
+                      - 0
                     transition: "{{interval_time - 1}}"
                   target:
                     entity_id: "{{target_light}}"
@@ -198,8 +187,8 @@ sequence:
                     entity_id: "{{target_light}}"
         - delay:
             seconds: "{{interval_time}}"
-    alias: Transition
-  - if:
+  - alias: Final Light Set
+    if:
       - condition: template
         value_template: "{{is_state(target_light, 'on')}}"
     then:
@@ -209,20 +198,15 @@ sequence:
         then:
           - variables:
               value_g: >-
-                {{[[((-0.000004 * target_kelvin | float ** 2 + 0.0586 *
-                target_kelvin | float + 40.082) | round) | int, 0] | max, 255] |
-                min}}
-              value_b: >-
-                {{[[((-0.000007 * target_kelvin | float ** 2 + 0.1096 *
-                target_kelvin | float - 160.11) | round) | int, 0] | max, 255] |
-                min}}
+                {{ [[(99.4708025861 * log(target_kelvin | float /100,e,1) -
+                161.1195681661) | round (0) | int, 0] | max, 255] | min }}
           - action: light.turn_on
             data:
               brightness_pct: "{{target_brightness}}"
               rgb_color:
                 - 255
                 - "{{value_g}}"
-                - "{{value_b}}"
+                - 0
               transition: "{{interval_time - 1}}"
             target:
               entity_id: "{{target_light}}"
@@ -234,5 +218,4 @@ sequence:
               transition: "{{interval_time - 1}}"
             target:
               entity_id: "{{target_light}}"
-    alias: Final Light Set
 mode: parallel
