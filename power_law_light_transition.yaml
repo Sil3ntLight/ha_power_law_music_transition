@@ -3,8 +3,7 @@ blueprint:
   author: Coleslaw1994
   description: >
     Script to transition light color/temperature over specified time following the power law curve specified.
-  source_url: https://github.com/Coleslaw1994/ha_parabolic_light_transition/blob/main/parabolic_light_transition.yaml
-  domain: script
+  source_url: https://github.com/Coleslaw1994/ha_power_law_light_transition/blob/main/power_law_light_transition.yaml
   homeassistant:
     min_version: 2024.9.0
 fields:
