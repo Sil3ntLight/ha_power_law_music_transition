@@ -22,18 +22,20 @@ fields:
       The volume to set the media player to initially.
     selector:
       number:
-        min: 0.00
-        max: 1.00
-    default: 0.00
+        min: 0
+        max: 100
+        unit_of_measurement: "%"
+    default: 0
     name: Starting volume
     required: true
   target_volume:
     description: The volume the media player should reach by the end of the transition.
     selector:
       number:
-        min: 0.01
-        max: 1.00
-    default: 1.00
+        min: 0
+        max: 100
+        unit_of_measurement: "%"
+    default: 50
     name: Final volume
     required: true
   volume_exponent:
@@ -69,12 +71,13 @@ sequence:
       interval_time: "{{60 / steps_per_minute}}"
       start_time: "{{as_timestamp(now())}}"
       finish_time: "{{start_time + transition_length * 60}}"
-      starting_volume: "{{starting_volume}}"
-      volume_change: "{{target_volume - starting_volume}}"
+      starting_volume_float: "{{starting_volume |float / 100}}"
+      target_volume_float: "{{target_volume |float / 100}}"
+      volume_change: "{{target_volume_float |float - starting_volume_float |float}}"
   - alias: Initial Volume Set
     action: media_player.volume_set
     data:
-      volume_level: "{{starting_volume}}"
+      volume_level: "{{starting_volume_float}}"
     target:
       entity_id: "{{target_mediaplayer}}"
   - alias: Transition
@@ -86,7 +89,7 @@ sequence:
         - variables:
             percent: "{{(as_timestamp(now()) - start_time) / (transition_length * 60)}}"
             volume: >-
-              {{(starting_volume |float + volume_change |float * percent
+              {{(starting_volume_float |float + volume_change |float * percent
               |float ** volume_exponent |float) |round(3, "floor")}} 
         - if:
             - condition: template
@@ -106,7 +109,7 @@ sequence:
     then:
       - action: media_player.volume_set
         data:
-          volume_level: "{{target_volume}}"
+          volume_level: "{{target_volume_float}}"
         target:
           entity_id: "{{target_mediaplayer}}"
 mode: parallel
