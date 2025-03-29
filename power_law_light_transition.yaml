@@ -1,83 +1,50 @@
 blueprint:
-  name: Parabolic (Power Law) Light Transition
-  author: Coleslaw1994
+  name: Exponential Music Volume Transition
+  author: Sil3ntLight
   description: >
-    Script to transition light color/temperature over specified time following the power law curve specified.
-  source_url: https://github.com/Coleslaw1994/ha_power_law_light_transition/blob/main/power_law_light_transition.yaml
+    Script to transition music volume over specified time following the power law curve specified.
+    Adapted from ha_power_law_light_transition by Coleslaw1994 (https://github.com/Coleslaw1994/ha_power_law_light_transition/blob/main/power_law_light_transition.yaml)
+  source_url: https://github.com/Sil3ntLight/ha_power_law_music_transition/blob/main/power_law_light_transition.yaml
   domain: script
   homeassistant:
     min_version: 2024.9.0
 fields:
-  target_light:
-    description: Light to be transitioned
+  target_mediaplayer:
+    description: Media Player to have volume transitioned
     selector:
       entity:
         filter:
-          domain: light
-    name: Target Light
+          domain: media_player
+    name: Media Player
     required: true
-  starting_brightness:
+  starting_volume:
     description: >-
-      The brightness to set the light to initially. This is ignored if the light
-      is already on.
+      The volume to set the media player to initially.
     selector:
       number:
-        min: 1
-        max: 100
-    default: 1
-    name: Starting brightness
+        min: 0.00
+        max: 1.00
+    default: 0.00
+    name: Starting volume
     required: true
-  target_brightness:
-    description: The brightness the light should reach by the end of the transition.
+  target_volume:
+    description: The volume the media player should reach by the end of the transition.
     selector:
       number:
-        min: 1
-        max: 100
-    default: 100
-    name: Target brightness
+        min: 0.01
+        max: 1.00
+    default: 1.00
+    name: Final volume
     required: true
-  brightness_exponent:
+  volume_exponent:
     description: >-
-      The exponent which defines the power law curve to follow for brightness,
+      The exponent which defines the power law curve to follow for volume,
       e.g. 2 for the parabolic curve y=x^2. You can easily visualize power law
       curves by entering the formula into any online graphing tool.
     selector:
       number: null
     default: 2
-    name: Brightness exponent
-    required: true
-  starting_kelvin:
-    description: >-
-      The color temperature to set the light to initially. This is ignored if
-      the light is already on.
-    selector:
-      color_temp:
-        unit: kelvin
-        min: 0
-        max: 6500
-    default: 1000
-    name: Starting Kelvin
-    required: true
-  target_kelvin:
-    description: The color temperature the light should reach by the end of the transition.
-    selector:
-      color_temp:
-        unit: kelvin
-        min: 0
-        max: 6500
-    default: 6500
-    name: Target Kelvin
-    required: true
-  kelvin_exponent:
-    description: >-
-      The exponent which defines the power law curve to follow for color
-      temperature, e.g. 2 for the parabolic curve y=x^2. You can easily
-      visualize power law curves by entering the formula into any online
-      graphing tool.
-    selector:
-      number: null
-    default: 2
-    name: Kelvin exponent
+    name: Volume exponent
     required: true
   transition_length:
     description: >-
@@ -85,12 +52,12 @@ fields:
       into account when setting up the automation this script is called by.
     selector:
       number: null
-    default: 15
+    default: 30
     name: Transition length
     required: true
   steps_per_minute:
     description: >-
-      The number of commands home assistant will send to the light each minute.
+      The number of commands home assistant will send to the media player each minute.
       Higher numbers will result in more accurate tracking along the curve. 
     selector:
       number: null
@@ -102,45 +69,14 @@ sequence:
       interval_time: "{{60 / steps_per_minute}}"
       start_time: "{{as_timestamp(now())}}"
       finish_time: "{{start_time + transition_length * 60}}"
-      starting_brightness: |-
-        {% if states(target_light) == 'off' %}
-          {{starting_brightness}}
-        {% else %}
-          {{state_attr(target_light, 'brightness')/2.55}}
-        {% endif %}
-      brightness_change: "{{target_brightness - starting_brightness}}"
-      starting_kelvin: |-
-        {% if states(target_light) == 'off' %}
-          {{starting_kelvin}}
-        {% else %}
-          {{state_attr(target_light, 'color_temp_kelvin')}}
-        {% endif %}
-      kelvin_change: "{{target_kelvin - starting_kelvin}}"
-  - alias: Initial Turn On
-    if:
-      - condition: template
-        value_template: "{{starting_kelvin < 2000}}"
-    then:
-      - variables:
-          value_g: >-
-            {{ [[(99.4708025861 * log(starting_kelvin | float /100,e,1) -
-            161.1195681661) | round (0) | int, 0] | max, 255] | min }}
-      - action: light.turn_on
-        data:
-          brightness_pct: "{{starting_brightness}}"
-          rgb_color:
-            - 255
-            - "{{value_g}}"
-            - 0
-        target:
-          entity_id: "{{target_light}}"
-    else:
-      - action: light.turn_on
-        data:
-          brightness_pct: "{{starting_brightness}}"
-          color_temp_kelvin: "{{starting_kelvin}}"
-        target:
-          entity_id: "{{target_light}}"
+      starting_volume: "{{starting_volume}}"
+      volume_change: "{{target_volume - starting_volume}}"
+  - alias: Initial Volume Set
+    action: media_player.volume_set
+    data:
+      volume_level: "{{starting_volume}}"
+    target:
+      entity_id: "{{target_mediaplayer}}"
   - alias: Transition
     repeat:
       until:
@@ -149,73 +85,28 @@ sequence:
       sequence:
         - variables:
             percent: "{{(as_timestamp(now()) - start_time) / (transition_length * 60)}}"
-            brightness: >-
-              {{(starting_brightness |float + brightness_change |float * percent
-              |float ** brightness_exponent |float) |round}} 
-            kelvin: >-
-              {{(starting_kelvin |float + kelvin_change |float * percent |float
-              ** kelvin_exponent |float) |round}} 
+            volume: >-
+              {{(starting_volume |float + volume_change |float * percent
+              |float ** volume_exponent |float) |round(3, "floor")}} 
         - if:
             - condition: template
-              value_template: "{{is_state(target_light, 'on')}}"
+              value_template: "{{is_state(target_mediaplayer, 'playing')}}"
           then:
-            - if:
-                - condition: template
-                  value_template: "{{kelvin < 2000}}"
-              then:
-                - variables:
-                    value_g: >-
-                      {{ [[(99.4708025861 * log(kelvin | float /100,e,1) -
-                      161.1195681661) | round (0) | int, 0] | max, 255] | min }}
-                - action: light.turn_on
-                  data:
-                    brightness_pct: "{{brightness}}"
-                    rgb_color:
-                      - 255
-                      - "{{value_g}}"
-                      - 0
-                    transition: "{{interval_time - 1}}"
-                  target:
-                    entity_id: "{{target_light}}"
-              else:
-                - action: light.turn_on
-                  data:
-                    brightness_pct: "{{brightness}}"
-                    color_temp_kelvin: "{{kelvin}}"
-                    transition: "{{interval_time - 1}}"
-                  target:
-                    entity_id: "{{target_light}}"
+            - action: media_player.volume_set
+              data:
+                volume_level: "{{volume}}"
+              target:
+                entity_id: "{{target_mediaplayer}}"
         - delay:
             seconds: "{{interval_time}}"
-  - alias: Final Light Set
+  - alias: Final Volume Set
     if:
       - condition: template
-        value_template: "{{is_state(target_light, 'on')}}"
+        value_template: "{{is_state(target_mediaplayer, 'playing')}}"
     then:
-      - if:
-          - condition: template
-            value_template: "{{target_kelvin < 2000}}"
-        then:
-          - variables:
-              value_g: >-
-                {{ [[(99.4708025861 * log(target_kelvin | float /100,e,1) -
-                161.1195681661) | round (0) | int, 0] | max, 255] | min }}
-          - action: light.turn_on
-            data:
-              brightness_pct: "{{target_brightness}}"
-              rgb_color:
-                - 255
-                - "{{value_g}}"
-                - 0
-              transition: "{{interval_time - 1}}"
-            target:
-              entity_id: "{{target_light}}"
-        else:
-          - action: light.turn_on
-            data:
-              brightness_pct: "{{target_brightness}}"
-              color_temp_kelvin: "{{target_kelvin}}"
-              transition: "{{interval_time - 1}}"
-            target:
-              entity_id: "{{target_light}}"
+      - action: media_player.volume_set
+        data:
+          volume_level: "{{target_volume}}"
+        target:
+          entity_id: "{{target_mediaplayer}}"
 mode: parallel
